@@ -112,7 +112,7 @@ export default function PacificoHomepage() {
               >
                 <Image
                   src="/images/pacifico-logo.png"
-                  alt="Pacifico Internacional - Educación Inspirada en Waldorf"
+                  alt="Pacifico Internacional - Inspiración Waldorf"
                   width={100}
                   height={100}
                   className="drop-shadow-lg w-[60px] h-[60px] md:w-[100px] md:h-[100px]"
@@ -182,7 +182,7 @@ export default function PacificoHomepage() {
                         />
                         <div>
                           <h3 className="font-bold text-gray-800">Pacifico Internacional</h3>
-                          <p className="text-sm text-gray-600">Educación Inspirada en Waldorf</p>
+                          <p className="text-sm text-gray-600">Inspiración Waldorf</p>
                         </div>
                       </div>
 
@@ -241,10 +241,10 @@ export default function PacificoHomepage() {
           <div className="flex items-center justify-center text-center">
             <div className="space-y-8 max-w-4xl mx-auto">
               <h2 className="text-5xl md:text-7xl font-bold text-white leading-tight">
-                Discover Waldorf in the
+                Discover Waldorf in
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-green-300">
                   {" "}
-                  Ocean & Jungle
+                  Costa Rica
                 </span>
               </h2>
 
@@ -259,7 +259,7 @@ export default function PacificoHomepage() {
                 >
                   <Image
                     src="/images/pacifico-logo.png"
-                    alt="Pacifico Internacional - Educación Inspirada en Waldorf"
+                    alt="Pacifico Internacional - Inspiración Waldorf"
                     width={250}
                     height={250}
                     className="drop-shadow-2xl w-[150px] h-[150px] md:w-[250px] md:h-[250px]"
@@ -278,10 +278,12 @@ export default function PacificoHomepage() {
                   variant="outline"
                   className="border-2 border-yellow-300 text-yellow-300 hover:bg-yellow-300 hover:text-gray-900 bg-transparent backdrop-blur-sm"
                 >
-                  <Link href="/admissions/application#top">
+                  {/* <Link href="/admissions/application#top"> */}
+                  <a target="_blank" rel="noopener noreferrer" href="https://docs.google.com/forms/d/e/1FAIpQLSc97z31yGk5b_BHceqy3OiJAPUxX0h1ty9e8k8BhtYjG5Vy0Q/viewform?usp=sharing&ouid=101911403675610930325">
                     <Calendar className="mr-2 h-5 w-5" />
                     Schedule a Visit or Call
-                  </Link>
+                  </a>
+                  {/* </Link> */}
                 </Button>
               </div>
             </div>
@@ -306,10 +308,10 @@ export default function PacificoHomepage() {
               <Waves className="h-8 w-8 text-blue-600" />
             </div>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              We are a Waldorf inspired school, located in the village of Cañafistula outside of Tamarindo in
-              Guanacaste, Costa Rica. With roots in Rudolf Steiner's Waldorf Pedagogy, we provide children from
-              preschool through 7th grade a bilingual education that builds purpose, confidence and connection while
-              fostering a love for learning.
+            We are a Waldorf inspired school, located in the village of Cañafistula outside of Tamarindo
+             in Guanacaste, Costa Rica. With roots in Rudolf Steiner's Waldorf Pedagogy, we provide children 
+             in preschool, primary and middle school a bilingual education that builds purpose, confidence and 
+             connection while fostering a love for learning.
             </p>
           </div>
 
@@ -622,7 +624,7 @@ export default function PacificoHomepage() {
                           variant="outline"
                           className="border-teal-600 text-teal-700 hover:bg-teal-50 bg-transparent"
                         >
-                          Email admissions@waldorf.cr
+                          Email info@waldorf.cr
                         </Button>
                       </div>
                     </div>
@@ -979,7 +981,7 @@ export default function PacificoHomepage() {
                 />
                 <div>
                   <h3 className="text-xl font-bold">Pacifico Internacional</h3>
-                  <p className="text-sm text-gray-300">Educación Inspirada en Waldorf</p>
+                  <p className="text-sm text-gray-300">Inspiración Waldorf</p>
                 </div>
               </div>
               <p className="text-gray-300">

@@ -241,10 +241,10 @@ export default function PacificoHomepageSpanish() {
           <div className="flex items-center justify-center text-center">
             <div className="space-y-8 max-w-4xl mx-auto">
               <h2 className="text-5xl md:text-7xl font-bold text-white leading-tight">
-                Descubre Waldorf en el
+                Descubre Waldorf en
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-green-300">
                   {" "}
-                  Océano y la Selva
+                  Costa Rica
                 </span>
               </h2>
 
@@ -627,7 +627,7 @@ export default function PacificoHomepageSpanish() {
                           variant="outline"
                           className="border-teal-600 text-teal-700 hover:bg-teal-50 bg-transparent"
                         >
-                          Email admissions@waldorf.cr
+                          Email info@waldorf.cr
                         </Button>
                       </div>
                     </div>
