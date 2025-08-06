@@ -10,7 +10,6 @@ import {
   MapPin,
   Phone,
   Waves,
-  Sun,
   Leaf,
   Heart,
   User,
@@ -30,11 +29,153 @@ import Image from "next/image"
 import Link from "next/link"
 import { useEffect, useState, useRef } from "react"
 
+interface CalendarEvent {
+  id: string
+  title: string
+  description?: string
+  startDate: string
+  endDate?: string
+  startTime?: string
+  endTime?: string
+  isAllDay: boolean
+  category?: string
+  location?: string
+}
+
 export default function PacificoHomepage() {
   const [scrollY, setScrollY] = useState(0)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [tuitionOpen, setTuitionOpen] = useState(false)
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([])
+  const [eventsLoading, setEventsLoading] = useState(true)
   const tuitionRef = useRef<HTMLDivElement>(null)
+
+  // Add these new state variables after the existing ones
+  const [contactForm, setContactForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    childAge: "",
+    message: "",
+  })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle")
+  const [submitMessage, setSubmitMessage] = useState("")
+
+  // Add this form submission handler
+  const handleContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    setSubmitStatus("idle")
+
+    try {
+      const response = await fetch("http://pacifico-api.test/api/v1/contact/message", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          name: `${contactForm.firstName} ${contactForm.lastName}`.trim(),
+          email: contactForm.email,
+          phone: contactForm.childAge, // Using childAge field as phone for now
+          message: contactForm.message,
+        }),
+      })
+
+      if (response.ok) {
+        setSubmitStatus("success")
+        setSubmitMessage("Thank you! Your message has been sent successfully. We'll get back to you within 24 hours.")
+        // Reset form
+        setContactForm({
+          firstName: "",
+          lastName: "",
+          email: "",
+          childAge: "",
+          message: "",
+        })
+      } else {
+        throw new Error("Failed to send message")
+      }
+    } catch (error) {
+      setSubmitStatus("error")
+      setSubmitMessage("Sorry, there was an error sending your message. Please try again or contact us directly.")
+      console.error("Contact form error:", error)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleInputChange = (field: keyof typeof contactForm, value: string) => {
+    setContactForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
+
+  // Static fallback events
+  const fallbackEvents: CalendarEvent[] = [
+    {
+      id: "1",
+      title: "Grades 1&2 Meet your Teacher",
+      description: "Parent(s) please come with your 1st and 2nd graders to meet your teacher.",
+      startDate: "2024-08-18",
+      endDate: "2024-08-18",
+      startTime: "10:00 AM",
+      endTime: "12:00 PM",
+      isAllDay: false,
+      category: "Grades 1 & 2",
+    },
+    {
+      id: "2",
+      title: "All Parent Meeting",
+      description: "At least one parent from each family must attend the first informational meeting.",
+      startDate: "2024-08-18",
+      endDate: "2024-08-18",
+      startTime: "3:00 PM",
+      endTime: "4:30 PM",
+      isAllDay: false,
+      category: "All Parents",
+    },
+    {
+      id: "3",
+      title: "First Day Grades!",
+      description: "First day of school.",
+      startDate: "2024-08-19",
+      endDate: "2024-08-19",
+      isAllDay: true,
+      category: "Grades 1 & 2",
+    },
+    {
+      id: "4",
+      title: "Kindergarten Meet your Teacher",
+      description: "Parent(s) please come with your kindergartener to meet your teacher.",
+      startDate: "2024-08-19",
+      endDate: "2024-08-19",
+      startTime: "10:00 AM",
+      endTime: "12:00 PM",
+      isAllDay: false,
+      category: "Kindergarten",
+    },
+    {
+      id: "5",
+      title: "First Day Kindergarten!",
+      description: "First day of school.",
+      startDate: "2024-08-20",
+      endDate: "2024-08-20",
+      isAllDay: true,
+      category: "Kindergarten",
+    },
+    {
+      id: "6",
+      title: "Costa Rica Independence Day",
+      description: "No school - National Holiday.",
+      startDate: "2024-09-15",
+      endDate: "2024-09-15",
+      isAllDay: true,
+      category: "All Students",
+    },
+  ]
 
   useEffect(() => {
     const handleScroll = () => {
@@ -43,6 +184,140 @@ export default function PacificoHomepage() {
 
     window.addEventListener("scroll", handleScroll, { passive: true })
     return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
+
+  useEffect(() => {
+    const fetchCalendarEvents = async (retryCount = 0) => {
+      try {
+        setEventsLoading(true)
+        console.log(`Attempt ${retryCount + 1}: Fetching calendar events from API...`)
+
+        // Add timeout and better error handling
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
+
+        // const response = await fetch("https://tiomike.com/api/v1/calendar/events", {
+        const response = await fetch("http://pacifico-api.test/api/v1/calendar/events", {
+        method: "GET",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          mode: "cors",
+          cache: "no-cache", // Force fresh request
+          signal: controller.signal,
+        })
+
+        clearTimeout(timeoutId)
+
+        console.log("✅ API Response status:", response.status)
+        console.log("✅ API Response headers:", Object.fromEntries(response.headers.entries()))
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`)
+        }
+
+        const data = await response.json()
+        console.log("✅ Raw API data received:", data)
+
+        // Handle different possible API response formats
+        let events = []
+
+        if (Array.isArray(data)) {
+          events = data
+        } else if (data.events && Array.isArray(data.events)) {
+          events = data.events
+        } else if (data.data && Array.isArray(data.data)) {
+          events = data.data
+        } else if (data.results && Array.isArray(data.results)) {
+          events = data.results
+        } else if (data.items && Array.isArray(data.items)) {
+          events = data.items
+        } else {
+          console.warn("API returned unexpected format:", data)
+          // Try to extract any array from the response
+          const possibleArrays = Object.values(data).filter(Array.isArray)
+          if (possibleArrays.length > 0) {
+            events = possibleArrays[0]
+            console.log("Found array in response:", events)
+          } else {
+            throw new Error("No array found in API response") 
+          }
+        }
+
+        console.log("✅ Extracted events array:", events)
+
+        // Transform API data to match our expected format and take first 6
+        const transformedEvents = events.slice(0, 6).map((event, index) => {
+          // Determine if it's an all-day event - use the isAllDay field directly
+          const isAllDay = event.isAllDay === true || event.all_day === true || event.allDay === true
+
+          const transformedEvent: CalendarEvent = {
+            id: event.id || event._id || event.uuid || `api-event-${index}`,
+            title: event.title || event.name || event.summary || event.event_name || event.subject || "Event",
+            description: event.description || event.details || event.summary || event.notes || event.body,
+            startDate:
+              event.start_date ||
+              event.startDate ||
+              event.date ||
+              event.event_date ||
+              event.start ||
+              new Date().toISOString().split("T")[0],
+            endDate:
+              event.end_date ||
+              event.endDate ||
+              event.date ||
+              event.event_date ||
+              event.end ||
+              event.start_date ||
+              event.startDate,
+            startTime: !isAllDay ? event.start_time || event.startTime || event.time_start : undefined,
+            endTime: !isAllDay ? event.end_time || event.endTime || event.time_end : undefined,
+            isAllDay: isAllDay,
+            // category: event.category || event.type || event.group || event.tags || "School Event",
+            location: event.location || event.venue || event.place || event.address,
+          }
+          console.log(isAllDay)
+          console.log(`Transformed event ${index + 1}:`, transformedEvent)
+          return transformedEvent
+        })
+
+        console.log("✅ Final transformed events:", transformedEvents)
+
+        if (transformedEvents.length > 0) {
+          setCalendarEvents(transformedEvents)
+          console.log(`🎉 SUCCESS! Loaded ${transformedEvents.length} events from API`)
+        } else {
+          throw new Error("No events found after transformation")
+        }
+      } catch (error) {
+        console.error(`❌ API fetch failed (attempt ${retryCount + 1}):`, error)
+
+        // Retry logic - try up to 2 more times
+        if (retryCount < 2) {
+          console.log(`🔄 Retrying in 2 seconds... (attempt ${retryCount + 2})`)
+          setTimeout(() => fetchCalendarEvents(retryCount + 1), 2000)
+          return
+        }
+
+        // More specific error handling
+        if (error.name === "AbortError") {
+          console.error("❌ Request timed out after 15 seconds")
+        } else if (error.message === "Failed to fetch") {
+          console.error("❌ Network error - check if API is accessible")
+        } else {
+          console.error("❌ Error details:", error.message)
+        }
+
+        console.log("🔄 Using fallback events after all retries failed")
+        // Use fallback events when API fails
+        setCalendarEvents(fallbackEvents)
+      } finally {
+        setEventsLoading(false)
+      }
+    }
+
+    fetchCalendarEvents()
   }, [])
 
   // Calculate logo animation based on scroll
@@ -79,6 +354,62 @@ export default function PacificoHomepage() {
     }
   }
 
+  const formatEventDate = (dateString: string) => {
+    // Append 'T00:00:00Z' if it's a plain date (e.g., '2025-08-04')
+    const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateString);
+    const adjustedDateString = isDateOnly ? `${dateString}T00:00:00Z` : dateString;
+  
+    const date = new Date(adjustedDateString);
+  
+    const day = date.getUTCDate();
+    const month = date.toLocaleDateString("en-US", {
+      month: "short",
+      timeZone: "UTC", // Force consistent month value
+    }).toUpperCase();
+  
+    return { day, month };
+  };
+
+  const formatFullDate = (dateString: string) => {
+    // Append 'T00:00:00Z' if it's a date-only string
+    const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(dateString);
+    const adjustedDateString = isDateOnly ? `${dateString}T00:00:00Z` : dateString;
+  
+    const date = new Date(adjustedDateString);
+  
+    return date.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      timeZone: "UTC", // Force consistent result regardless of local timezone
+    });
+  };
+
+  const getEventColor = (index: number) => {
+    const colors = ["pink", "blue", "green", "yellow", "purple", "orange"]
+    return colors[index % colors.length]
+  }
+
+  const formatEventDateTime = (event: CalendarEvent) => {
+    if (event.isAllDay) {
+      return "All Day Event"
+    } else {
+      const startDateFormatted = formatFullDate(event.startDate)
+      const endDateFormatted = event.endDate ? formatFullDate(event.endDate) : null
+
+      if (event.startDate === event.endDate || !event.endDate) {
+        // Same day event
+        return `${startDateFormatted} from ${event.startTime || "TBD"} to ${event.endTime || "TBD"}`
+      } else {
+        // Multi-day event with times
+        return `${startDateFormatted} at ${event.startTime || "TBD"} to ${endDateFormatted} at ${
+          event.endTime || "TBD"
+        }`
+      }
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-100 via-emerald-50 to-amber-50">
       {/* Hero Section */}
@@ -112,7 +443,7 @@ export default function PacificoHomepage() {
               >
                 <Image
                   src="/images/pacifico-logo.png"
-                  alt="Pacifico Internacional - Inspiración Waldorf"
+                  alt="Pacifico Internacional - Educación Inspirada en Waldorf"
                   width={100}
                   height={100}
                   className="drop-shadow-lg w-[60px] h-[60px] md:w-[100px] md:h-[100px]"
@@ -152,12 +483,6 @@ export default function PacificoHomepage() {
                       <span className="text-lg">🇺🇸</span>
                       <span>English</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="flex items-center gap-2 cursor-pointer hover:bg-gray-50">
-                      <Link href="/es">
-                        <span className="text-lg">🇪🇸</span>
-                        <span>Español</span>
-                      </Link>
-                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -182,7 +507,7 @@ export default function PacificoHomepage() {
                         />
                         <div>
                           <h3 className="font-bold text-gray-800">Pacifico Internacional</h3>
-                          <p className="text-sm text-gray-600">Inspiración Waldorf</p>
+                          <p className="text-sm text-gray-600">Educación Inspirada en Waldorf</p>
                         </div>
                       </div>
 
@@ -220,13 +545,6 @@ export default function PacificoHomepage() {
                             <span className="text-xl">🇺🇸</span>
                             <span className="text-gray-800">English</span>
                           </button>
-                          <Link
-                            href="/es"
-                            className="flex items-center gap-3 w-full text-left p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                          >
-                            <span className="text-xl">🇪🇸</span>
-                            <span className="text-gray-800">Español</span>
-                          </Link>
                         </div>
                       </div>
                     </div>
@@ -259,7 +577,7 @@ export default function PacificoHomepage() {
                 >
                   <Image
                     src="/images/pacifico-logo.png"
-                    alt="Pacifico Internacional - Inspiración Waldorf"
+                    alt="Pacifico Internacional - Educación Inspirada en Waldorf"
                     width={250}
                     height={250}
                     className="drop-shadow-2xl w-[150px] h-[150px] md:w-[250px] md:h-[250px]"
@@ -278,12 +596,11 @@ export default function PacificoHomepage() {
                   variant="outline"
                   className="border-2 border-yellow-300 text-yellow-300 hover:bg-yellow-300 hover:text-gray-900 bg-transparent backdrop-blur-sm"
                 >
-                  {/* <Link href="/admissions/application#top"> */}
-                  <a target="_blank" rel="noopener noreferrer" href="https://docs.google.com/forms/d/e/1FAIpQLSc97z31yGk5b_BHceqy3OiJAPUxX0h1ty9e8k8BhtYjG5Vy0Q/viewform?usp=sharing&ouid=101911403675610930325">
+                  <a href="https://docs.google.com/forms/d/e/1FAIpQLSc97z31yGk5b_BHceqy3OiJAPUxX0h1ty9e8k8BhtYjG5Vy0Q/viewform?usp=sharing&ouid=101911403675610930325"
+                    target="_blank">
                     <Calendar className="mr-2 h-5 w-5" />
                     Schedule a Visit or Call
                   </a>
-                  {/* </Link> */}
                 </Button>
               </div>
             </div>
@@ -308,10 +625,10 @@ export default function PacificoHomepage() {
               <Waves className="h-8 w-8 text-blue-600" />
             </div>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            We are a Waldorf inspired school, located in the village of Cañafistula outside of Tamarindo
-             in Guanacaste, Costa Rica. With roots in Rudolf Steiner's Waldorf Pedagogy, we provide children 
-             in preschool, primary and middle school a bilingual education that builds purpose, confidence and 
-             connection while fostering a love for learning.
+            We are a Waldorf inspired school, located in the village of Cañafistula outside of Tamarindo in Guanacaste, 
+            Costa Rica. With roots in Rudolf Steiner's Waldorf Pedagogy, we provide children in preschool, primary and 
+            middle school a bilingual education that builds purpose, confidence and connection while fostering a love 
+            for learning.
             </p>
           </div>
 
@@ -433,7 +750,7 @@ export default function PacificoHomepage() {
                         <div>
                           <p className="font-medium text-gray-800">Meet Our Teachers</p>
                           <p className="text-sm text-gray-600">
-                            Connect with our experienced Waldorf-trained educators
+                            Connect with our experienced Waldorf-trained faculty.
                           </p>
                         </div>
                       </div>
@@ -509,7 +826,7 @@ export default function PacificoHomepage() {
                         </thead>
                         <tbody>
                           <tr className="bg-blue-50">
-                            <td colSpan="4" className="border border-gray-200 p-3 font-bold text-blue-700 text-center">
+                            <td colSpan={4} className="border border-gray-200 p-3 font-bold text-blue-700 text-center">
                               Full Day (8:00 AM - 2:15 PM)
                             </td>
                           </tr>
@@ -536,7 +853,7 @@ export default function PacificoHomepage() {
                             <td className="border border-gray-200 p-3 text-right text-gray-600">$695</td>
                           </tr>
                           <tr className="bg-amber-50">
-                            <td colSpan="4" className="border border-gray-200 p-3 font-bold text-amber-700 text-center">
+                            <td colSpan={4} className="border border-gray-200 p-3 font-bold text-amber-700 text-center">
                               Half Day (8:00 AM - 1:00 PM)
                             </td>
                           </tr>
@@ -619,13 +936,15 @@ export default function PacificoHomepage() {
                             Call +506 8762 6927
                           </a>
                         </Button>
+                        <a href="mailto:info@waldorf.cr">
                         <Button
                           size="sm"
                           variant="outline"
                           className="border-teal-600 text-teal-700 hover:bg-teal-50 bg-transparent"
-                        >
+                          >
                           Email info@waldorf.cr
                         </Button>
+                        </a>
                       </div>
                     </div>
                   </CardContent>
@@ -649,11 +968,15 @@ export default function PacificoHomepage() {
                 asChild
                 className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white shadow-lg"
               >
-                <a
+                {/* <a
                   href="https://calendar.google.com/calendar/embed?src=93e6bc2fe2660ddcc925e876ff13dd04394372fc3d48130f6617c431e92dbbd6%40group.calendar.google.com&ctz=America%2FCosta_Rica"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
+                  <Calendar className="mr-2 h-5 w-5" />
+                  View Full Calendar
+                </a> */}
+                <a href="/calendar">
                   <Calendar className="mr-2 h-5 w-5" />
                   View Full Calendar
                 </a>
@@ -677,169 +1000,71 @@ export default function PacificoHomepage() {
           </div>
 
           <div className="space-y-6 max-w-4xl mx-auto">
-            <Card className="bg-white/90 backdrop-blur-sm border-2 border-pink-200 shadow-lg">
-              <CardContent className="p-4 md:p-6">
-                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-                  <div className="flex flex-row sm:flex-col items-center sm:items-center text-pink-600 min-w-[80px]">
-                    <div className="text-3xl sm:text-4xl font-bold mr-2 sm:mr-0">18</div>
-                    <div className="text-sm font-semibold">AUG</div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg sm:text-xl font-bold text-pink-700 mb-2 break-words">
-                      Grades 1&2 Meet your Teacher
-                    </h3>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-600 mb-2">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-4 w-4 flex-shrink-0" />
-                        <span className="break-words">10:00 AM - 12:00 PM</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <User className="h-4 w-4 flex-shrink-0" />
-                        <span className="break-words">Grades 1 & 2</span>
-                      </div>
-                    </div>
-                    <p className="text-gray-700 text-sm sm:text-base break-words">
-                      Parent(s) please come with your 1st and 2nd graders to meet your teacher.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {eventsLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+                <p className="text-gray-600 mt-4">Loading upcoming events...</p>
+              </div>
+            ) : (
+              calendarEvents.map((event, index) => {
+                const { day, month } = formatEventDate(event.startDate)
+                const colorClass = getEventColor(index)
 
-            <Card className="bg-white/90 backdrop-blur-sm border-2 border-blue-200 shadow-lg">
-              <CardContent className="p-4 md:p-6">
-                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-                  <div className="flex flex-row sm:flex-col items-center sm:items-center text-blue-600 min-w-[80px]">
-                    <div className="text-3xl sm:text-4xl font-bold mr-2 sm:mr-0">18</div>
-                    <div className="text-sm font-semibold">AUG</div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg sm:text-xl font-bold text-blue-700 mb-2 break-words">All Parent Meeting</h3>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-600 mb-2">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-4 w-4 flex-shrink-0" />
-                        <span className="break-words">3:00 PM - 4:30 PM</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Heart className="h-4 w-4 flex-shrink-0" />
-                        <span className="break-words">All Parents</span>
-                      </div>
-                    </div>
-                    <p className="text-gray-700 text-sm sm:text-base break-words">
-                      At least one parent from each family must attend the first informational meeting.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                return (
+                  <Card
+                    key={event.id}
+                    className={`bg-white/90 backdrop-blur-sm border-2 border-${colorClass}-200 shadow-lg`}
+                  >
+                    <CardContent className="p-4 md:p-6">
+                      <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+                        <div
+                          className={`flex flex-row sm:flex-col items-center sm:items-center text-${colorClass}-600 min-w-[80px]`}
+                        >
+                          <div className="text-3xl sm:text-4xl font-bold mr-2 sm:mr-0">{day}</div>
+                          <div className="text-sm font-semibold">{month}</div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className={`text-lg sm:text-xl font-bold text-${colorClass}-700 mb-3 break-words`}>
+                            {event.title}
+                          </h3>
 
-            <Card className="bg-white/90 backdrop-blur-sm border-2 border-green-200 shadow-lg">
-              <CardContent className="p-4 md:p-6">
-                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-                  <div className="flex flex-row sm:flex-col items-center sm:items-center text-green-600 min-w-[80px]">
-                    <div className="text-3xl sm:text-4xl font-bold mr-2 sm:mr-0">19</div>
-                    <div className="text-sm font-semibold">AUG</div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg sm:text-xl font-bold text-green-700 mb-2 break-words">First Day Grades!</h3>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-600 mb-2">
-                      <div className="flex items-center gap-1">
-                        <Sun className="h-4 w-4 flex-shrink-0" />
-                        <span className="break-words">All Day</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <User className="h-4 w-4 flex-shrink-0" />
-                        <span className="break-words">Grades 1 & 2</span>
-                      </div>
-                    </div>
-                    <p className="text-gray-700 text-sm sm:text-base break-words">First day of school.</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                          <div className="mb-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Clock className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                              <span
+                                className={`text-sm font-medium ${event.isAllDay ? "text-blue-600" : "text-gray-700"}`}
+                              >
+                                {formatEventDateTime(event)}
+                              </span>
+                            </div>
 
-            <Card className="bg-white/90 backdrop-blur-sm border-2 border-yellow-200 shadow-lg">
-              <CardContent className="p-4 md:p-6">
-                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-                  <div className="flex flex-row sm:flex-col items-center sm:items-center text-yellow-600 min-w-[80px]">
-                    <div className="text-3xl sm:text-4xl font-bold mr-2 sm:mr-0">19</div>
-                    <div className="text-sm font-semibold">AUG</div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg sm:text-xl font-bold text-yellow-700 mb-2 break-words">
-                      Kindergarten Meet your Teacher
-                    </h3>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-600 mb-2">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-4 w-4 flex-shrink-0" />
-                        <span className="break-words">10:00 AM - 12:00 PM</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <User className="h-4 w-4 flex-shrink-0" />
-                        <span className="break-words">Kindergarten</span>
-                      </div>
-                    </div>
-                    <p className="text-gray-700 text-sm sm:text-base break-words">
-                      Parent(s) please come with your kindergartener to meet your teacher.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                            {event.category && (
+                              <div className="flex items-center gap-2 mb-2">
+                                <User className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                                <span className="text-sm text-gray-600">{event.category}</span>
+                              </div>
+                            )}
 
-            <Card className="bg-white/90 backdrop-blur-sm border-2 border-purple-200 shadow-lg">
-              <CardContent className="p-4 md:p-6">
-                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-                  <div className="flex flex-row sm:flex-col items-center sm:items-center text-purple-600 min-w-[80px]">
-                    <div className="text-3xl sm:text-4xl font-bold mr-2 sm:mr-0">20</div>
-                    <div className="text-sm font-semibold">AUG</div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg sm:text-xl font-bold text-purple-700 mb-2 break-words">
-                      First Day Kindergarten!
-                    </h3>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-600 mb-2">
-                      <div className="flex items-center gap-1">
-                        <Sun className="h-4 w-4 flex-shrink-0" />
-                        <span className="break-words">All Day</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <User className="h-4 w-4 flex-shrink-0" />
-                        <span className="break-words">Kindergarten</span>
-                      </div>
-                    </div>
-                    <p className="text-gray-700 text-sm sm:text-base break-words">First day of school.</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                            {event.location && (
+                              <div className="flex items-center gap-2">
+                                <MapPin className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                                <span className="text-sm text-gray-600">{event.location}</span>
+                              </div>
+                            )}
+                          </div>
 
-            <Card className="bg-white/90 backdrop-blur-sm border-2 border-orange-200 shadow-lg">
-              <CardContent className="p-4 md:p-6">
-                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
-                  <div className="flex flex-row sm:flex-col items-center sm:items-center text-orange-600 min-w-[80px]">
-                    <div className="text-3xl sm:text-4xl font-bold mr-2 sm:mr-0">15</div>
-                    <div className="text-sm font-semibold">SEP</div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg sm:text-xl font-bold text-orange-700 mb-2 break-words">
-                      Costa Rica Independence Day
-                    </h3>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-600 mb-2">
-                      <div className="flex items-center gap-1">
-                        <Leaf className="h-4 w-4 flex-shrink-0" />
-                        <span className="break-words">Holiday</span>
+                          {event.description && (
+                            <p className="text-gray-700 text-sm sm:text-base break-words leading-relaxed">
+                              {event.description}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <User className="h-4 w-4 flex-shrink-0" />
-                        <span className="break-words">All Students</span>
-                      </div>
-                    </div>
-                    <p className="text-gray-700 text-sm sm:text-base break-words">No school.</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                    </CardContent>
+                  </Card>
+                )
+              })
+            )}
           </div>
         </div>
       </section>
@@ -879,7 +1104,8 @@ export default function PacificoHomepage() {
                     <Phone className="h-6 w-6 text-teal-600 mt-1" />
                     <div>
                       <p className="font-semibold text-gray-800">Phone</p>
-                      <p className="text-gray-600">+506 8762 6927</p>
+                      <p className="text-gray-600"><a href="https://wa.me/50687626927" 
+                        target="_blank" rel="noopener noreferrer">+506 8762 6927</a></p>
                     </div>
                   </div>
                   <div className="flex items-start space-x-3">
@@ -887,9 +1113,7 @@ export default function PacificoHomepage() {
                     <div>
                       <p className="font-semibold text-gray-800">Email</p>
                       <p className="text-gray-600">
-                        info@waldorf.cr
-                        <br />
-                        admissions@waldorf.cr
+                        <a href="mailto:info@waldorf.cr">info@waldorf.cr</a>
                       </p>
                     </div>
                   </div>
@@ -925,15 +1149,27 @@ export default function PacificoHomepage() {
                 <CardDescription>We'll get back to you within 24 hours</CardDescription>
               </CardHeader>
               <CardContent>
-                <form className="space-y-4">
+                <form onSubmit={handleContactSubmit} className="space-y-4">
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
-                      <Input placeholder="Your first name" className="border-2 border-gray-200 focus:border-teal-500" />
+                      <Input
+                        placeholder="Your first name"
+                        className="border-2 border-gray-200 focus:border-teal-500"
+                        value={contactForm.firstName}
+                        onChange={(e) => handleInputChange("firstName", e.target.value)}
+                        required
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
-                      <Input placeholder="Your last name" className="border-2 border-gray-200 focus:border-teal-500" />
+                      <Input
+                        placeholder="Your last name"
+                        className="border-2 border-gray-200 focus:border-teal-500"
+                        value={contactForm.lastName}
+                        onChange={(e) => handleInputChange("lastName", e.target.value)}
+                        required
+                      />
                     </div>
                   </div>
                   <div>
@@ -942,22 +1178,60 @@ export default function PacificoHomepage() {
                       type="email"
                       placeholder="your.email@example.com"
                       className="border-2 border-gray-200 focus:border-teal-500"
+                      value={contactForm.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      required
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Child's Age</label>
-                    <Input placeholder="Age of your child" className="border-2 border-gray-200 focus:border-teal-500" />
+                    <Input
+                      placeholder="Age of your child"
+                      className="border-2 border-gray-200 focus:border-teal-500"
+                      value={contactForm.childAge}
+                      onChange={(e) => handleInputChange("childAge", e.target.value)}
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
                     <Textarea
                       placeholder="Tell us about your interest in our school..."
                       className="border-2 border-gray-200 focus:border-teal-500 min-h-[120px]"
+                      value={contactForm.message}
+                      onChange={(e) => handleInputChange("message", e.target.value)}
+                      required
                     />
                   </div>
-                  <Button className="w-full bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white">
-                    <Mail className="mr-2 h-5 w-5" />
-                    Send Message
+
+                  {/* Status Messages */}
+                  {submitStatus === "success" && (
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-green-700 text-sm">{submitMessage}</p>
+                    </div>
+                  )}
+
+                  {submitStatus === "error" && (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-red-700 text-sm">{submitMessage}</p>
+                    </div>
+                  )}
+
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="mr-2 h-5 w-5" />
+                        Send Message
+                      </>
+                    )}
                   </Button>
                 </form>
               </CardContent>
@@ -981,7 +1255,7 @@ export default function PacificoHomepage() {
                 />
                 <div>
                   <h3 className="text-xl font-bold">Pacifico Internacional</h3>
-                  <p className="text-sm text-gray-300">Inspiración Waldorf</p>
+                  <p className="text-sm text-gray-300">Educación Inspirada en Waldorf</p>
                 </div>
               </div>
               <p className="text-gray-300">
@@ -1017,10 +1291,11 @@ export default function PacificoHomepage() {
               <h4 className="text-lg font-semibold mb-4">Connect With Us</h4>
               <div className="space-y-3 text-gray-300">
                 <p className="flex items-center">
-                  <Mail className="mr-2 h-4 w-4" /> info@waldorf.cr
+                  <Mail className="mr-2 h-4 w-4" /> <a href="mailto:info@waldorf.cr">info@waldorf.cr</a>
                 </p>
                 <p className="flex items-center">
-                  <Phone className="mr-2 h-4 w-4" /> +506 8762 6927
+                  <Phone className="mr-2 h-4 w-4" /> <a href="https://wa.me/50687626927" 
+                    target="_blank" rel="noopener noreferrer">+506 8762 6927</a>
                 </p>
                 <p className="flex items-center">
                   <MapPin className="mr-2 h-4 w-4" /> Costa Rica, Guanacaste
