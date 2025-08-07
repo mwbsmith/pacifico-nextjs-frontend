@@ -197,7 +197,7 @@ export default function PacificoHomepage() {
         const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
 
         // const response = await fetch("https://tiomike.com/api/v1/calendar/events", {
-        const response = await fetch("http://tiomike/api/v1/calendar/events", {
+        const response = await fetch("https://tiomike.com/api/v1/calendar/events", {
         method: "GET",
           headers: {
             Accept: "application/json",
