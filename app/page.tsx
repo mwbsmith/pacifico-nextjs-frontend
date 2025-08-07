@@ -69,7 +69,7 @@ export default function PacificoHomepage() {
     setSubmitStatus("idle")
 
     try {
-      const response = await fetch("http://pacifico-api.test/api/v1/contact/message", {
+      const response = await fetch("https://tiomike.com/api/v1/contact/message", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
